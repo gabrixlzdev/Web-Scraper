@@ -67,22 +67,34 @@ copy .env.example .env
 # On Linux / macOS:
 cp .env.example .env
 ```
-*(By default, `HEADLESS=False` in `.env` so you can visually watch the browser window pop up and run).*
 
 ### 4. Run the scraper demonstration
 ```bash
 python main.py
 ```
+> **Note on Browser Behavior**: By default, `HEADLESS=False`. The Chromium window will launch visibly, navigate to the target search URL, handle dynamic challenges, scroll to hydrate lazy content, and print extracted listings. The browser stays open for inspection until you press **Enter** in your terminal.
 
 ---
 
-## ⚙️ Key Features
+## ⚙️ Environment Variables Reference
 
-* **Dynamic JavaScript Rendering**: Handles single-page applications (SPAs), infinite scroll, and delayed DOM hydration via Playwright's browser engine.
-* **Anti-Bot & Stealth Browsing**: Employs humanized User-Agents, configurable viewport dimensions, and automated navigation delays to bypass basic automated bot detection.
-* **Modular OOP Architecture**: Decoupled engine allowing easy adaptation to diverse e-commerce, real estate, or directory target platforms.
-* **Automated Data Cleaning Pipeline**: Cleans, parses, and typecasts raw extracted text (prices, numeric metrics, addresses) into clean tabular datasets using Pandas.
-* **Production Deployment Ready**: Containerized via Docker to run seamlessly on local environments or cloud instances (AWS EC2, GCP, DigitalOcean).
+Configure these settings inside your local `.env` file:
+
+| Variable | Default Value | Description |
+| :--- | :--- | :--- |
+| `TARGET_URL` | `https://www.zillow.com/homes/for_sale/` | The target search/category URL to scrape |
+| `HEADLESS` | `False` | `True` for silent cloud/Docker runs, `False` for visual demo |
+| `SCRAPER_TIMEOUT` | `30000` | Maximum wait time in milliseconds for network requests |
+| `USER_DATA_DIR` | `browser_profile` | Local directory storing cookies and persistent session state |
+
+---
+
+## 🛡️ Anti-Bot & Stealth Capabilities
+
+* **Persistent Session Profiles**: Uses `launch_persistent_context` to retain authentic cookies, cache, and session tokens across runs in `browser_profile/`, avoiding fresh-bot detection flags.
+* **Automation Flag Masking**: Automatically strips `navigator.webdriver` via `--disable-blink-features=AutomationControlled`.
+* **Automated Press-and-Hold Solver**: Detects PerimeterX/DataDome verification overlays and simulates realistic human mouse down/hold/up interactions.
+* **Humanized Viewport & Headers**: Employs desktop 1080p dimensions and realistic user agents.
 
 ---
 

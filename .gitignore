@@ -22,6 +22,8 @@ data/*.json
 test-results/
 playwright-report/
 .cache/
+browser_profile/
+user_data/
 
 # IDE & OS files
 .vscode/
