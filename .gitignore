@@ -1,0 +1,30 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment variables & secrets
+.env
+*.local
+
+# Data output files (keep folder tracked via .gitkeep)
+data/*.csv
+data/*.json
+!data/.gitkeep
+
+# Playwright & Browser artifacts
+test-results/
+playwright-report/
+.cache/
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

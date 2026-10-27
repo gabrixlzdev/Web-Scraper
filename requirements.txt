@@ -1,0 +1,24 @@
+# ==============================================================================
+# Project Dependencies
+# ==============================================================================
+
+# Playwright: High-performance browser automation library by Microsoft.
+# We use Playwright because target sites like Zillow render property cards 
+# dynamically using modern JavaScript frameworks (React/Next.js). Standard HTTP 
+# libraries (like Requests or Urllib) only receive raw initial HTML and miss dynamic content.
+playwright>=1.40.0
+
+# Pandas: The premier Python data manipulation and analysis library.
+# We will use it to clean dirty scraped strings (e.g., converting "$1,250,000" into 1250000 
+# integer values) and export structured DataFrames into CSV files.
+pandas>=2.1.0
+
+# Python-Dotenv: Loads environment variables from a local `.env` file into `os.environ`.
+# Essential in production to manage sensitive settings like proxy credentials 
+# or custom endpoints without hardcoding secrets in code.
+python-dotenv>=1.0.0
+
+# Pydantic: Data validation and settings management using Python type annotations.
+# Ensures each extracted property record strictly conforms to expected data types 
+# before downstream processing.
+pydantic>=2.5.0
