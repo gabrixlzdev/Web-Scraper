@@ -19,11 +19,14 @@ from src.extractor import ListingExtractor
 # Import the infinite scroll and multi-page pagination engine
 from src.scroller import InfiniteScroller
 
+# Import the Pandas data cleaning, normalization, and CSV export pipeline
+from src.pipeline import DataPipeline
+
 # Import the interactive GUI configuration dialogs
 from src.config_gui import get_or_prompt_config, get_or_prompt_target_url
 
 # Current semantic version of this package
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 # Explicitly list public symbols exported when someone does 'from src import *'
 __all__ = [
@@ -32,6 +35,7 @@ __all__ = [
     "BotChallengeHandler",
     "ListingExtractor",
     "InfiniteScroller",
+    "DataPipeline",
     "get_or_prompt_config",
     "get_or_prompt_target_url",
 ]

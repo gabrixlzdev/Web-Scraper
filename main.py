@@ -2,6 +2,7 @@
 
 from src.scraper import DynamicWebScraper
 from src.config_gui import get_or_prompt_config
+from src.pipeline import DataPipeline
 
 
 def run_demo():
@@ -41,6 +42,16 @@ def run_demo():
                         f"     Addr:  {item.get('address') or 'N/A'}\n"
                         f"     Link:  {item.get('url') or 'N/A'}\n"
                     )
+
+                # --- 3. Process & Export with Pandas Pipeline ---
+                print("[*] Processing raw data with Pandas cleaning pipeline...")
+                pipeline = DataPipeline(raw_listings=listings)
+                clean_df = pipeline.clean_data()
+
+                # Save clean dataset into data/ folder as CSV
+                csv_file = pipeline.export_csv()
+                print(f"[+] Dataset saved: {csv_file.name} ({len(clean_df)} rows)")
+
             else:
                 print("[!] No listings could be extracted from this page.")
             print("====================================================\n")

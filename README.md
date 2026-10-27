@@ -73,7 +73,28 @@ python main.py
 > 1. **URL & Volume Selection Modal**: Native GUI dialog prompts you to confirm/enter the target URL and desired item count (or `0` for Unlimited Mode). Settings are automatically persisted to `.env`.
 > 2. **Persistent Browser Session**: Chromium launches with session profile persistence (`browser_profile/`), saving cookies to bypass repetitive bot checks.
 > 3. **Infinite Scroll & Multi-Page Traversal**: The engine scrolls each page container to hydrate lazy cards and automatically advances through the pagination bar (`[Next >]`) until your requested target count is fulfilled.
-> 4. **Inspection Hold**: The browser window remains open until you press **Enter** in your terminal.
+> 4. **Automated CSV Export**: Extracted listings are automatically cleaned with Pandas (prices converted to numeric integers, addresses split into city/state/zip) and saved to `data/listings_<timestamp>.csv`.
+> 5. **Inspection Hold**: The browser window remains open until you press **Enter** in your terminal.
+
+---
+
+## 📊 Cleaned Data Schema (CSV Output)
+
+Each run automatically exports a timestamped spreadsheet to the `data/` directory with the following clean schema:
+
+| Column | Type | Example | Description |
+| :--- | :--- | :--- | :--- |
+| `price_clean` | Integer | `1149000` | Normalized numeric price (currency & symbols stripped) |
+| `beds_clean` | Float | `4.0` | Bedroom count (`0.0` for Studio apartments) |
+| `baths_clean` | Float | `3.0` | Bathroom count (e.g. `2.5`, `3.0`) |
+| `street` | String | `9037 S Deer Creek Canyon Road` | Parsed street address |
+| `city` | String | `Littleton` | Extracted city name |
+| `state` | String | `CO` | Two-letter state code |
+| `zip_code` | String | `80127` | 5-digit ZIP code |
+| `url` | String | `https://www.zillow.com/homedetails/...` | Direct clickable link to the listing |
+| `price_raw` | String | `$1,149,000` | Original unprocessed scraped price string |
+| `address_raw` | String | `9037 S Deer Creek Canyon Road...` | Original unprocessed address string |
+| `extracted_at` | DateTime | `2026-10-27 13:15:00` | ISO timestamp when the record was processed |
 
 ---
 
