@@ -1,9 +1,10 @@
-"""Module containing the core ZillowScraper class skeleton.
+"""Module containing the core DynamicWebScraper class skeleton.
 
 EDUCATIONAL NOTE:
-In modern Python development, we organize scrapers into classes (Object-Oriented Programming).
-This keeps configurations (timeouts, URLs, browser settings) bundled together with the
-methods that execute the actions (launching browser, navigating, extracting data).
+In professional data engineering and commercial freelancing (e.g. Fiverr),
+scrapers are designed to be general-purpose and configurable rather than
+hardcoded to a single trademarked brand. This allows you to reuse the same
+engine across many client projects with minimal changes.
 """
 
 import os
@@ -14,49 +15,49 @@ from pathlib import Path
 # Reads key-value pairs from a `.env` file and adds them to environment variables (os.environ).
 from dotenv import load_dotenv
 
-# Execute load_dotenv() when this module is imported.
-# It looks for a `.env` file in the current working directory or parent directories.
+# Initialize environment variables from .env
 load_dotenv()
 
 
-class ZillowScraper:
-    """Production-grade scraper for extracting property listings from Zillow.
+class DynamicWebScraper:
+    """Production-grade scraper for extracting data from dynamic websites.
 
-    This class encapsulates browser configuration and data management.
+    This class encapsulates browser automation settings, anti-detection
+    configurations, and extracted data management.
     """
 
     def __init__(
         self,
-        base_url: Optional[str] = None,
+        target_url: Optional[str] = None,
         headless: Optional[bool] = None,
         timeout: Optional[int] = None,
         user_agent: Optional[str] = None,
         output_dir: str = "data",
     ) -> None:
-        """Initializes the ZillowScraper instance.
+        """Initializes the DynamicWebScraper instance.
 
         Settings fallback hierarchy:
-        1. Explicit argument passed into ZillowScraper(...)
+        1. Explicit argument passed into DynamicWebScraper(...)
         2. Environment variable from .env (e.g. os.getenv("HEADLESS"))
         3. Hardcoded safe default fallback value
 
         Args:
-            base_url: The target website entry point.
+            target_url: The target website entry point.
             headless:
                 - `True`: Browser runs silently in background (fast, server/Docker friendly).
-                - `False`: Browser window physically opens (ideal for visual debugging).
+                - `False`: Visual browser window pops up (client demo & debugging).
             timeout: Maximum wait time in milliseconds before timing out.
             user_agent: Browser header string mimicking human navigation.
-            output_dir: Local folder where extracted CSV/JSON files will be saved.
+            output_dir: Local directory where extracted CSV/JSON files will be stored.
         """
         # Resolve configurations: argument -> env var -> hardcoded default
-        self.base_url = base_url or os.getenv("BASE_URL", "https://www.zillow.com")
+        self.target_url = target_url or os.getenv("TARGET_URL", "https://www.zillow.com")
 
         if headless is not None:
             self.headless = headless
         else:
             # os.getenv returns a string, so we check if it equals "true" (case-insensitive)
-            env_headless = os.getenv("HEADLESS", "True").strip().lower()
+            env_headless = os.getenv("HEADLESS", "False").strip().lower()
             self.headless = env_headless in ("true", "1", "yes")
 
         if timeout is not None:
@@ -64,7 +65,7 @@ class ZillowScraper:
         else:
             self.timeout = int(os.getenv("SCRAPER_TIMEOUT", "30000"))
 
-        # Fallback to a standard modern Chrome user agent if none was provided
+        # Modern Chrome User-Agent on Windows 10/11 to avoid immediate bot detection
         self.user_agent = (
             user_agent
             or os.getenv("USER_AGENT")
@@ -77,5 +78,9 @@ class ZillowScraper:
         # Create output directory if it doesn't already exist (mkdir -p equivalent)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        # In-memory storage list where raw scraped listing dictionaries will accumulate
+        # In-memory storage list where raw scraped records will accumulate
         self.raw_listings: List[Dict[str, Optional[str]]] = []
+
+
+# Alias for backwards compatibility if referenced under a real estate alias
+RealEstateScraper = DynamicWebScraper

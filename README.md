@@ -1,11 +1,11 @@
-# Scalable Real Estate Web Scraper (Zillow)
+# Scalable Dynamic Web Scraper & ETL Pipeline
 
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Playwright](https://img.shields.io/badge/Playwright-Automated%20Browser-green.svg)](https://playwright.dev/python/)
 [![Pandas](https://img.shields.io/badge/Pandas-Data%20Engineering-orange.svg)](https://pandas.pydata.org/)
 [![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED.svg)](https://www.docker.com/)
 
-A production-grade, fault-tolerant web scraping and ETL data pipeline targeting real estate listings on **Zillow**. Built with an Object-Oriented architecture using **Python**, **Playwright (Sync API)** for JavaScript rendering and anti-bot mitigation, **Pandas** for schema cleaning, and **Docker** for cloud deployment.
+A production-grade, fault-tolerant web scraping and ETL data pipeline designed for modern JavaScript-heavy websites. Built with an Object-Oriented architecture using **Python**, **Playwright (Sync API)** for browser automation and anti-bot mitigation, **Pandas** for schema cleaning, and **Docker** for cloud deployment.
 
 ---
 
@@ -15,9 +15,9 @@ A production-grade, fault-tolerant web scraping and ETL data pipeline targeting 
 Scalable-web-scraper/
 ├── src/
 │   ├── __init__.py
-│   ├── scraper.py          # Core OOP scraping engine with Playwright
+│   ├── scraper.py          # Core OOP browser automation engine
 │   └── pipeline.py         # Data cleaning, normalization, and CSV export
-├── data/                   # Data output directory (CSV/JSON artifacts)
+├── data/                   # Output directory (CSV/JSON artifacts)
 ├── .env.example            # Environment configuration template
 ├── .gitignore              # Production-grade gitignore rules
 ├── Dockerfile              # Containerized headless environment
@@ -29,30 +29,31 @@ Scalable-web-scraper/
 
 ## 🚀 Key Features
 
-* **Dynamic JavaScript Rendering**: Handles single-page app (SPA) hydration, infinite scrolls, and dynamic DOM updates using Playwright's headless browser.
-* **Anti-Bot Mitigation**: Employs humanized user-agent strings, randomized navigation delays, and customized browser context headers to avoid basic bot triggers.
-* **OOP Architecture**: Modular, maintainable, and extensible Python codebase following clean code principles.
-* **Automated Data Cleaning Pipeline**: Parses raw scraped strings (prices, bed counts, bath counts, addresses) into normalized numeric and categorical formats using Pandas.
-* **Production Deployment Ready**: Fully containerized using Docker to guarantee seamless execution across local machines, AWS EC2, or GCP Cloud Run.
+* **Dynamic JavaScript Rendering**: Handles single-page applications (SPAs), infinite scroll, and delayed DOM hydration via Playwright's browser engine.
+* **Anti-Bot & Stealth Browsing**: Employs humanized User-Agents, configurable viewport dimensions, and automated navigation delays to bypass basic automated bot detection.
+* **Modular OOP Architecture**: Decoupled engine allowing easy adaptation to diverse e-commerce, real estate, or directory target platforms.
+* **Automated Data Cleaning Pipeline**: Cleans, parses, and typecasts raw extracted text (prices, numeric metrics, addresses) into clean tabular datasets using Pandas.
+* **Production Deployment Ready**: Containerized via Docker to run seamlessly on local environments or cloud instances (AWS EC2, GCP, DigitalOcean).
 
 ---
 
-## 🛠️ Tech Stack & Dependencies
+## 🛠️ Tech Stack
 
 * **Language**: Python 3.10+
 * **Browser Automation**: [Playwright (Python Sync API)](https://playwright.dev/python/)
 * **Data Processing**: [Pandas](https://pandas.pydata.org/) & [Pydantic](https://docs.pydantic.dev/)
-* **Environment Configuration**: [python-dotenv](https://github.com/theskumar/python-dotenv)
+* **Configuration**: [python-dotenv](https://github.com/theskumar/python-dotenv)
 * **Containerization**: Docker
 
 ---
 
-## 💼 Custom Data Extraction Services
+## 💼 Custom Data Extraction Services (Fiverr Portfolio)
 
-Looking for customized data scraping, API integrations, or large-scale web extraction pipelines?
+Need reliable, high-volume data extraction or custom scrapers built for your business?
 
-* **E-commerce**: Price monitoring, competitor catalog scraping, inventory tracking.
-* **Real Estate**: MLS, Zillow, Redfin data extraction with geolocation normalization.
-* **Lead Generation**: B2B directories, job boards, business listings.
+* **E-Commerce & Retail**: Price monitoring, product catalogs, stock tracking.
+* **Real Estate & Listings**: Property metrics, addresses, pricing trends.
+* **Lead Generation**: B2B directories, job boards, business contact data.
+* **Custom ETL Pipelines**: Clean CSV, JSON, PostgreSQL, or Google Sheets exports.
 
-Feel free to connect or reach out for custom freelance data engineering projects!
+Available for freelance orders and custom data engineering contracts.
