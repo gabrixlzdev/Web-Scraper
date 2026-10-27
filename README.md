@@ -15,6 +15,7 @@ A production-grade, fault-tolerant web scraping and ETL data pipeline designed f
 Scalable-web-scraper/
 ├── src/
 │   ├── __init__.py
+│   ├── config_gui.py       # Native GUI modal for URL selection & .env persistence
 │   ├── scraper.py          # Core OOP browser automation engine
 │   └── pipeline.py         # Data cleaning, normalization, and CSV export
 ├── data/                   # Output directory (CSV/JSON artifacts)
@@ -59,30 +60,26 @@ python -m pip install -r requirements.txt
 python -m playwright install chromium
 ```
 
-### 3. Configure environment settings
-```bash
-# Copy example configuration template to create your .env
-# On Windows:
-copy .env.example .env
-# On Linux / macOS:
-cp .env.example .env
-```
-
-### 4. Run the scraper demonstration
+### 3. Run the scraper demonstration
 ```bash
 python main.py
 ```
-> **Note on Browser Behavior**: By default, `HEADLESS=False`. The Chromium window will launch visibly, navigate to the target search URL, handle dynamic challenges, scroll to hydrate lazy content, and print extracted listings. The browser stays open for inspection until you press **Enter** in your terminal.
+
+> **Interactive User Experience**:
+> 1. **URL Selection Modal**: Upon startup, a native GUI dialog appears asking you to confirm or paste the target URL to scrape (e.g. `https://www.zillow.com/austin-tx/`). Any new URL is automatically saved to your `.env` for future runs.
+> 2. **Persistent Browser Session**: Playwright launches Chromium using a persistent profile (`browser_profile/`), retaining human cookies and avoiding repetitive bot verification screens.
+> 3. **Live Demonstration**: The browser navigates, handles challenge screens, scrolls to hydrate lazy cards, and prints extracted listings (Price, Beds, Baths, Address, and Direct Item URL) to your terminal.
+> 4. **Inspection Hold**: The browser window remains open until you press **Enter** in your terminal.
 
 ---
 
 ## ⚙️ Environment Variables Reference
 
-Configure these settings inside your local `.env` file:
+Configure these settings inside your local `.env` file (or automatically via the GUI modal):
 
 | Variable | Default Value | Description |
 | :--- | :--- | :--- |
-| `TARGET_URL` | `https://www.zillow.com/homes/for_sale/` | The target search/category URL to scrape |
+| `TARGET_URL` | `https://www.zillow.com/austin-tx/` | The target search/category URL to scrape |
 | `HEADLESS` | `False` | `True` for silent cloud/Docker runs, `False` for visual demo |
 | `SCRAPER_TIMEOUT` | `30000` | Maximum wait time in milliseconds for network requests |
 | `USER_DATA_DIR` | `browser_profile` | Local directory storing cookies and persistent session state |
@@ -102,8 +99,8 @@ Configure these settings inside your local `.env` file:
 
 * **Language**: Python 3.10+
 * **Browser Automation**: [Playwright (Python Sync API)](https://playwright.dev/python/)
+* **GUI / Configuration**: [Tkinter](https://docs.python.org/3/library/tkinter.html) (native Python standard library) & [python-dotenv](https://github.com/theskumar/python-dotenv)
 * **Data Processing**: [Pandas](https://pandas.pydata.org/) & [Pydantic](https://docs.pydantic.dev/)
-* **Configuration**: [python-dotenv](https://github.com/theskumar/python-dotenv)
 * **Containerization**: Docker
 
 ---

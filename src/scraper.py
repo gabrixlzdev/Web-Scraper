@@ -1,9 +1,11 @@
 """Module containing the core DynamicWebScraper class with Playwright automation."""
 
 import os
+import re
 import time
 from typing import Dict, List, Optional
 from pathlib import Path
+from urllib.parse import urljoin
 
 # python-dotenv: Loads key-value pairs from .env into os.environ
 from dotenv import load_dotenv
@@ -19,7 +21,7 @@ class DynamicWebScraper:
     """Production-grade scraper for extracting data from dynamic websites.
 
     Encapsulates persistent browser sessions, anti-detection configs,
-    bot challenge handling, DOM extraction, and data storage.
+    bot challenge handling, hybrid DOM/Regex extraction, and data storage.
     """
 
     def __init__(
@@ -32,9 +34,9 @@ class DynamicWebScraper:
         user_data_dir: Optional[str] = None,
     ) -> None:
         """Initializes scraper settings and establishes instance variables."""
-        # Target search URL
+        # Target search URL fallback
         self.target_url = target_url or os.getenv(
-            "TARGET_URL", "https://www.zillow.com/homes/for_sale/"
+            "TARGET_URL", "https://www.zillow.com/austin-tx/"
         )
 
         # Headless mode: True = background; False = visual window
@@ -79,8 +81,7 @@ class DynamicWebScraper:
         """Launches a persistent browser context to retain cookies and bypass bot detection."""
         self._playwright = sync_playwright().start()
 
-        # launch_persistent_context keeps cookies, cache, and session state on disk.
-        # This makes the browser look like a returning human user rather than a brand-new bot.
+        # launch_persistent_context retains cookies and session tokens in user_data_dir
         self.context = self._playwright.chromium.launch_persistent_context(
             user_data_dir=str(self.user_data_dir.resolve()),
             headless=self.headless,
@@ -103,16 +104,10 @@ class DynamicWebScraper:
         self.page.set_default_timeout(self.timeout)
 
     def handle_bot_challenge(self, wait_seconds: int = 15) -> bool:
-        """Detects anti-bot verification screens (e.g. PerimeterX 'Press & Hold') and handles them.
-
-        1. First tries an automated mouse press-and-hold (mouse down, sleep 6s, mouse up).
-        2. If a manual puzzle or hold is still needed, gives the user a grace window in the visual window.
-        3. Once solved, cookies are saved to browser_profile/ forever.
-        """
+        """Detects anti-bot verification screens (e.g. PerimeterX 'Press & Hold') and handles them."""
         if not self.page:
             return False
 
-        # Known PerimeterX / DataDome / Cloudflare challenge selectors
         challenge_selectors = [
             '#px-captcha',
             'div[id*="captcha"]',
@@ -136,10 +131,8 @@ class DynamicWebScraper:
                 continue
 
         if not found_challenge:
-            # No challenge detected; page is clean
             return True
 
-        # Attempt automated press-and-hold
         if target_element:
             try:
                 box = target_element.bounding_box()
@@ -155,19 +148,14 @@ class DynamicWebScraper:
             except Exception as e:
                 print(f"[!] Automated hold simulation failed: {e}")
 
-        # Check if challenge is now cleared
         print(f"[*] Waiting up to {wait_seconds}s for challenge clearance...")
         start_time = time.time()
         while time.time() - start_time < wait_seconds:
-            # Check if property cards or page content have loaded
             if self.page.locator('article[data-test="property-card"], .photo-cards').count() > 0:
                 print("[+] Bot challenge cleared! Active listings rendered.")
                 return True
-
-            # If still on challenge, wait a bit
             time.sleep(1.5)
 
-        print("[!] Warning: Challenge may still be active. Proceeding to extraction attempt.")
         return False
 
     def navigate(self, url: Optional[str] = None) -> bool:
@@ -188,13 +176,31 @@ class DynamicWebScraper:
             return False
 
     def scroll_page(self, num_scrolls: int = 3, delay: float = 1.2) -> None:
-        """Simulates human scrolling to trigger dynamic JavaScript lazy-loading."""
+        """Simulates scrolling to trigger dynamic JavaScript lazy-loading.
+
+        Scrolls the listing container pane directly via JavaScript to prevent
+        unwanted map zooming.
+        """
         if not self.page:
             return
 
-        print(f"[*] Scrolling page ({num_scrolls} steps) to hydrate lazy content...")
+        print(f"[*] Scrolling listings feed ({num_scrolls} steps) to hydrate lazy content...")
         for step in range(1, num_scrolls + 1):
-            self.page.mouse.wheel(0, 800)
+            try:
+                self.page.evaluate("""
+                    () => {
+                        const container = document.querySelector('#search-page-list-container') 
+                                      || document.querySelector('[data-test="search-page-list-container"]')
+                                      || document.querySelector('div[class*="search-page-list-container"]');
+                        if (container) {
+                            container.scrollBy({ top: 900, behavior: 'smooth' });
+                        } else {
+                            window.scrollBy({ top: 900, behavior: 'smooth' });
+                        }
+                    }
+                """)
+            except Exception:
+                self.page.mouse.wheel(0, 800)
             time.sleep(delay)
 
     def _safe_get_text(self, parent: Locator, selectors: List[str]) -> Optional[str]:
@@ -210,12 +216,127 @@ class DynamicWebScraper:
                 continue
         return None
 
+    def _extract_card_data(self, card: Locator) -> Dict[str, Optional[str]]:
+        """Extracts price, address, beds, baths, and listing URL using hybrid DOM + Regex strategy."""
+        # --- 1. Address Extraction ---
+        address = self._safe_get_text(card, [
+            '[data-test="property-card-addr"]',
+            'address[data-test="property-card-addr"]',
+            'address',
+            'a[data-test="property-card-link"]',
+            'a[class*="StyledPropertyCardDataArea-anchor"]',
+        ])
+
+        # --- 2. Listing URL Extraction ---
+        item_url = None
+        link_selectors = [
+            'a[data-test="property-card-link"]',
+            'a[href*="/homedetails/"]',
+            'a[href*="/b/"]',
+            'a.property-card-link',
+            'a[class*="StyledPropertyCardDataArea-anchor"]',
+            'a[href]',
+        ]
+        for l_sel in link_selectors:
+            try:
+                link_elem = card.locator(l_sel).first
+                if link_elem.count() > 0:
+                    raw_href = link_elem.get_attribute("href")
+                    if raw_href and raw_href.strip():
+                        # Resolve relative links (e.g. /homedetails/...) to full absolute URLs
+                        item_url = urljoin(self.target_url, raw_href.strip())
+                        break
+            except Exception:
+                continue
+
+        # --- 3. Price Extraction ---
+        price = self._safe_get_text(card, [
+            '[data-test="property-card-price"]',
+            'span[data-test="property-card-price"]',
+            'span[class*="StyledPrice"]',
+            'div[class*="StyledPropertyCardDataArea-anchor"] span',
+            'span:has-text("$")',
+        ])
+
+        # --- 4. Beds & Baths Extraction via DOM ---
+        beds = self._safe_get_text(card, [
+            'ul[class*="StyledPropertyCardHomeDetailsList"] li:has-text("bd")',
+            'ul[class*="StyledPropertyCardHomeDetailsList"] li:has-text("bed")',
+            'span:has-text("bd")',
+            'span:has-text("bed")',
+        ])
+
+        baths = self._safe_get_text(card, [
+            'ul[class*="StyledPropertyCardHomeDetailsList"] li:has-text("ba")',
+            'ul[class*="StyledPropertyCardHomeDetailsList"] li:has-text("bath")',
+            'span:has-text("ba")',
+            'span:has-text("bath")',
+        ])
+
+        # --- 5. Fallback: Parse Card Inner Text with Regex ---
+        try:
+            raw_text = card.inner_text()
+        except Exception:
+            raw_text = ""
+
+        if raw_text:
+            # Price regex: matches currency symbols ($ € £ R$ C$ A$) followed by formatted digits
+            if not price:
+                price_match = re.search(
+                    r"(?:\$|€|£|R\$|C\$|A\$)\s*\d{1,3}(?:[,\.]\d{3})*(?:\s*\/\s*(?:mo|month))?",
+                    raw_text,
+                )
+                if price_match:
+                    price = price_match.group(0).strip()
+
+            # Beds regex: matches '3 bds', '2 beds', 'Studio', '4 bedrooms', etc.
+            if not beds:
+                beds_match = re.search(
+                    r"(\d+(?:\.\d+)?|\bStudio\b)\s*(?:bds?|beds?|bedrooms?|dormitorio[s]?|quarto[s]?)",
+                    raw_text,
+                    re.IGNORECASE,
+                )
+                if beds_match:
+                    beds = beds_match.group(0).strip()
+
+            # Baths regex: matches '2 ba', '1.5 baths', '3 bathrooms', etc.
+            if not baths:
+                baths_match = re.search(
+                    r"(\d+(?:\.\d+)?)\s*(?:ba|baths?|bathrooms?|baño[s]?|banheiro[s]?)",
+                    raw_text,
+                    re.IGNORECASE,
+                )
+                if baths_match:
+                    baths = baths_match.group(0).strip()
+
+            # Address regex fallback (if selector missed it)
+            if not address:
+                addr_match = re.search(
+                    r"\d+[^,\n]+,\s*[^,\n]+,\s*[A-Z]{2}\s*\d{5}", raw_text
+                )
+                if addr_match:
+                    address = addr_match.group(0).strip()
+
+        return {
+            "price": price,
+            "address": address,
+            "beds": beds,
+            "baths": baths,
+            "url": item_url,
+        }
+
     def extract_listings(self, max_items: int = 20) -> List[Dict[str, Optional[str]]]:
-        """Finds property cards on the page and extracts price, address, beds, and baths."""
+        """Finds property cards on the page and extracts price, address, beds, baths, and URLs.
+
+        Args:
+            max_items: Upper limit of items to extract in a single pass.
+
+        Returns:
+            List of dictionaries containing extracted fields.
+        """
         if not self.page:
             raise RuntimeError("Browser not started. Call start_browser() first.")
 
-        # Candidate selectors for property card containers
         card_selectors = [
             'article[data-test="property-card"]',
             'div[data-test="property-card"]',
@@ -244,47 +365,10 @@ class DynamicWebScraper:
 
         for index in range(extract_count):
             card = cards_locator.nth(index)
-
-            # 1. Price
-            price = self._safe_get_text(card, [
-                '[data-test="property-card-price"]',
-                'span[data-test="property-card-price"]',
-                'span[class*="StyledPrice"]',
-                'div[class*="StyledPropertyCardDataArea-anchor"] span',
-            ])
-
-            # 2. Address
-            address = self._safe_get_text(card, [
-                '[data-test="property-card-addr"]',
-                'address[data-test="property-card-addr"]',
-                'address',
-                'a[data-test="property-card-link"]',
-            ])
-
-            # 3. Beds
-            beds = self._safe_get_text(card, [
-                'ul[class*="StyledPropertyCardHomeDetailsList"] li:has-text("bd")',
-                'ul[class*="StyledPropertyCardHomeDetailsList"] li:has-text("bed")',
-                'span:has-text("bd")',
-                'span:has-text("bed")',
-            ])
-
-            # 4. Baths
-            baths = self._safe_get_text(card, [
-                'ul[class*="StyledPropertyCardHomeDetailsList"] li:has-text("ba")',
-                'ul[class*="StyledPropertyCardHomeDetailsList"] li:has-text("bath")',
-                'span:has-text("ba")',
-                'span:has-text("bath")',
-            ])
-
-            record = {
-                "price": price,
-                "address": address,
-                "beds": beds,
-                "baths": baths,
-            }
-
-            extracted.append(record)
+            record = self._extract_card_data(card)
+            # Only record if at least address or price was detected (filters out ads)
+            if record["price"] or record["address"]:
+                extracted.append(record)
 
         self.raw_listings.extend(extracted)
         return extracted
