@@ -1,30 +1,32 @@
 """Main execution entry point for the Dynamic Web Scraper.
 
 Features:
-- Native GUI dialog to confirm or enter a target URL (with .env persistence)
+- Native GUI dialog to confirm/enter target URL and desired item count (with .env persistence)
+- Supports Unlimited Mode (0 = ALL available listings)
 - Persistent anti-detection Chromium session (retaining cookies across runs)
 - Automated handling of bot challenge overlays
-- Lazy-load DOM hydration via humanized scrolling
+- Infinite scroll pagination engine with real-time deduplication
 - Resilient property data extraction (Price, Address, Beds, Baths, and Link URL)
 - Interactive keep-alive until user chooses to close
 """
 
 from src.scraper import DynamicWebScraper
-from src.config_gui import get_or_prompt_target_url
+from src.config_gui import get_or_prompt_config
 
 
 def run_demo():
-    """Runs an end-to-end extraction session with interactive URL selection."""
+    """Runs an end-to-end extraction session with interactive URL and count selection."""
     print("==================================================")
     print("   Starting Dynamic Web Scraper (Playwright Sync)")
     print("==================================================")
 
-    # 1. Prompt user via GUI popup to confirm or update target URL
-    selected_url = get_or_prompt_target_url()
-    print(f"[*] Target URL selected: {selected_url}")
+    # 1. Prompt user via GUI popup for target URL and volume limit
+    selected_url, max_items = get_or_prompt_config()
+    limit_label = "UNLIMITED" if max_items <= 0 else str(max_items)
+    print(f"[*] Target URL: {selected_url}")
+    print(f"[*] Target Volume: {limit_label} listings")
 
     # 2. Use the context manager ('with' block):
-    # Initializes persistent context with chosen URL and cleans up when finished
     with DynamicWebScraper(target_url=selected_url) as scraper:
         print("[+] Browser launched successfully.")
 
@@ -34,13 +36,10 @@ def run_demo():
         if success:
             print("[+] Page loaded successfully!")
 
-            # Scroll down to hydrate lazy-loaded listing cards
-            scraper.scroll_page(num_scrolls=2, delay=1.0)
+            # Run infinite scroll extraction for the requested count (dynamically scales scroll steps)
+            listings = scraper.extract_listings(target_count=max_items)
 
-            # Extract property data (price, address, beds, baths, url)
-            listings = scraper.extract_listings(max_items=10)
-
-            print("\n================ Extracted Listings ================")
+            print(f"\n================ Extracted Listings ({len(listings)} Total) ================")
             if listings:
                 for idx, item in enumerate(listings, start=1):
                     print(

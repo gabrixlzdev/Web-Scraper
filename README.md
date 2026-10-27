@@ -5,7 +5,7 @@
 [![Pandas](https://img.shields.io/badge/Pandas-Data%20Engineering-orange.svg)](https://pandas.pydata.org/)
 [![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED.svg)](https://www.docker.com/)
 
-A production-grade, fault-tolerant web scraping and ETL data pipeline designed for modern JavaScript-heavy websites. Built with an Object-Oriented architecture using **Python**, **Playwright (Sync API)** for browser automation and anti-bot mitigation, **Pandas** for schema cleaning, and **Docker** for cloud deployment.
+A production-grade, fault-tolerant web scraping and ETL data pipeline designed for modern JavaScript-heavy websites. Built with a decoupled Object-Oriented architecture using **Python**, **Playwright (Sync API)** for browser automation and anti-bot mitigation, **Pandas** for schema cleaning, and **Docker** for cloud deployment.
 
 ---
 
@@ -14,17 +14,21 @@ A production-grade, fault-tolerant web scraping and ETL data pipeline designed f
 ```
 Scalable-web-scraper/
 ├── src/
-│   ├── __init__.py
-│   ├── config_gui.py       # Native GUI modal for URL selection & .env persistence
-│   ├── scraper.py          # Core OOP browser automation engine
-│   └── pipeline.py         # Data cleaning, normalization, and CSV export
-├── data/                   # Output directory (CSV/JSON artifacts)
-├── .env.example            # Environment configuration template
-├── .gitignore              # Production-grade gitignore rules
-├── Dockerfile              # Containerized headless environment
-├── main.py                 # Live demonstration runner
-├── requirements.txt        # Pinned dependencies
-└── README.md               # Project documentation
+│   ├── __init__.py          # Package initialization & exports
+│   ├── browser.py           # Playwright lifecycle, persistent context & stealth flags
+│   ├── bot_handler.py       # PerimeterX & CAPTCHA detection and Press-and-Hold solver
+│   ├── extractor.py         # Hybrid DOM + Regex card extraction (price, address, beds, baths, url)
+│   ├── scroller.py          # Infinite scroll engine with real-time deduplication
+│   ├── scraper.py           # High-level orchestrator class (DynamicWebScraper)
+│   ├── config_gui.py        # Native GUI modal for URL selection & .env persistence
+│   └── pipeline.py          # Data cleaning, normalization, and CSV export
+├── data/                    # Output directory (CSV/JSON artifacts)
+├── .env.example             # Environment configuration template
+├── .gitignore               # Production-grade gitignore rules
+├── Dockerfile               # Containerized headless environment
+├── main.py                  # Live demonstration runner
+├── requirements.txt         # Pinned dependencies
+└── README.md                # Project documentation
 ```
 
 ---
@@ -66,9 +70,9 @@ python main.py
 ```
 
 > **Interactive User Experience**:
-> 1. **URL Selection Modal**: Upon startup, a native GUI dialog appears asking you to confirm or paste the target URL to scrape (e.g. `https://www.zillow.com/austin-tx/`). Any new URL is automatically saved to your `.env` for future runs.
-> 2. **Persistent Browser Session**: Playwright launches Chromium using a persistent profile (`browser_profile/`), retaining human cookies and avoiding repetitive bot verification screens.
-> 3. **Live Demonstration**: The browser navigates, handles challenge screens, scrolls to hydrate lazy cards, and prints extracted listings (Price, Beds, Baths, Address, and Direct Item URL) to your terminal.
+> 1. **URL Selection Modal**: Native GUI dialog prompts you to confirm or enter the target URL to scrape (e.g. `https://www.zillow.com/austin-tx/`). New URLs are automatically persisted to `.env`.
+> 2. **Persistent Browser Session**: Chromium launches with session profile persistence (`browser_profile/`), saving cookies to bypass repetitive bot checks.
+> 3. **Infinite Scroll Extraction**: The engine scrolls the listing container continuously, hydrating lazy-loaded items and collecting unique records until your target count is met.
 > 4. **Inspection Hold**: The browser window remains open until you press **Enter** in your terminal.
 
 ---
@@ -80,6 +84,7 @@ Configure these settings inside your local `.env` file (or automatically via the
 | Variable | Default Value | Description |
 | :--- | :--- | :--- |
 | `TARGET_URL` | `https://www.zillow.com/austin-tx/` | The target search/category URL to scrape |
+| `MAX_ITEMS` | `50` | Desired listing extraction count (`0` = Unlimited Mode) |
 | `HEADLESS` | `False` | `True` for silent cloud/Docker runs, `False` for visual demo |
 | `SCRAPER_TIMEOUT` | `30000` | Maximum wait time in milliseconds for network requests |
 | `USER_DATA_DIR` | `browser_profile` | Local directory storing cookies and persistent session state |
@@ -91,7 +96,8 @@ Configure these settings inside your local `.env` file (or automatically via the
 * **Persistent Session Profiles**: Uses `launch_persistent_context` to retain authentic cookies, cache, and session tokens across runs in `browser_profile/`, avoiding fresh-bot detection flags.
 * **Automation Flag Masking**: Automatically strips `navigator.webdriver` via `--disable-blink-features=AutomationControlled`.
 * **Automated Press-and-Hold Solver**: Detects PerimeterX/DataDome verification overlays and simulates realistic human mouse down/hold/up interactions.
-* **Humanized Viewport & Headers**: Employs desktop 1080p dimensions and realistic user agents.
+* **Targeted Container Scrolling**: Uses JavaScript execution to scroll `#search-page-list-container` directly, preventing map zooming.
+* **Real-Time Deduplication**: Uses set-based memory hashing to prevent duplicate listings during infinite scrolling.
 
 ---
 
@@ -99,7 +105,7 @@ Configure these settings inside your local `.env` file (or automatically via the
 
 * **Language**: Python 3.10+
 * **Browser Automation**: [Playwright (Python Sync API)](https://playwright.dev/python/)
-* **GUI / Configuration**: [Tkinter](https://docs.python.org/3/library/tkinter.html) (native Python standard library) & [python-dotenv](https://github.com/theskumar/python-dotenv)
+* **GUI / Configuration**: [Tkinter](https://docs.python.org/3/library/tkinter.html) & [python-dotenv](https://github.com/theskumar/python-dotenv)
 * **Data Processing**: [Pandas](https://pandas.pydata.org/) & [Pydantic](https://docs.pydantic.dev/)
 * **Containerization**: Docker
 

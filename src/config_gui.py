@@ -1,22 +1,17 @@
-"""Module for interactive GUI-based target URL configuration and .env persistence.
+"""Module for interactive GUI-based configuration and .env persistence.
 
-EDUCATIONAL NOTE:
-Tkinter is Python's standard built-in GUI library. It requires no external pip packages
-and runs natively on Windows, macOS, and Linux desktop environments.
+Supports selecting target URLs and setting desired extraction volume
+(with 0 / 'all' representing Unlimited Mode).
 """
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 
-def update_env_target_url(new_url: str, env_path: Path = Path(".env")) -> None:
-    """Updates or creates TARGET_URL in the local .env file."""
-    new_url = new_url.strip()
-    if not new_url:
-        return
-
-    # If .env does not exist, check if .env.example exists to use as base, or create fresh
+def update_env_variable(key: str, value: str, env_path: Path = Path(".env")) -> None:
+    """Updates or inserts a key-value setting in the local .env file."""
+    value = value.strip()
     lines = []
     if env_path.exists():
         with open(env_path, "r", encoding="utf-8") as f:
@@ -28,47 +23,42 @@ def update_env_target_url(new_url: str, env_path: Path = Path(".env")) -> None:
     updated = False
     new_lines = []
     for line in lines:
-        if line.strip().startswith("TARGET_URL="):
-            new_lines.append(f"TARGET_URL={new_url}\n")
+        if line.strip().startswith(f"{key}="):
+            new_lines.append(f"{key}={value}\n")
             updated = True
         else:
             new_lines.append(line)
 
     if not updated:
-        new_lines.append(f"\nTARGET_URL={new_url}\n")
+        new_lines.append(f"\n{key}={value}\n")
 
     with open(env_path, "w", encoding="utf-8") as f:
         f.writelines(new_lines)
 
-    # Keep in-memory os.environ synchronized
-    os.environ["TARGET_URL"] = new_url
+    os.environ[key] = value
 
 
-def get_or_prompt_target_url(env_path: Path = Path(".env")) -> str:
-    """Prompts the user via a native GUI dialog to confirm or enter a target URL.
+def get_or_prompt_config(env_path: Path = Path(".env")) -> Tuple[str, int]:
+    """Prompts the user via native GUI dialogs for target URL and desired item count.
 
-    - If a TARGET_URL exists in .env: asks if the user wants to reuse it.
-    - If No (or no URL exists): displays an input dialog to paste a new URL.
-    - Gracefully falls back to terminal CLI input if running in a headless/Docker environment.
+    Returns:
+        Tuple of (target_url, max_items). max_items=0 denotes Unlimited Mode.
     """
-    # 1. Read existing saved URL
     current_url = os.getenv("TARGET_URL", "").strip()
+    saved_items_str = os.getenv("MAX_ITEMS", "50").strip()
 
-    # Try launching native Tkinter GUI dialog
     try:
         import tkinter as tk
         from tkinter import messagebox, simpledialog
 
-        # Initialize hidden root Tk window (prevents blank background window from lingering)
         root = tk.Tk()
         root.withdraw()
-        # Bring popup to the front of all open Windows
         root.attributes("-topmost", True)
 
-        chosen_url: Optional[str] = None
+        chosen_url: str = ""
 
+        # --- 1. Target URL Prompt ---
         if current_url:
-            # Ask user if they want to keep the current URL
             reuse = messagebox.askyesno(
                 title="Target URL Configuration",
                 message=(
@@ -79,7 +69,6 @@ def get_or_prompt_target_url(env_path: Path = Path(".env")) -> str:
             if reuse:
                 chosen_url = current_url
             else:
-                # Prompt user for new URL with current as default
                 prompted = simpledialog.askstring(
                     title="Enter Target URL",
                     prompt="Enter the new website URL to scrape:",
@@ -87,25 +76,45 @@ def get_or_prompt_target_url(env_path: Path = Path(".env")) -> str:
                 )
                 if prompted and prompted.strip():
                     chosen_url = prompted.strip()
-                    update_env_target_url(chosen_url, env_path)
+                    update_env_variable("TARGET_URL", chosen_url, env_path)
                 else:
                     chosen_url = current_url
         else:
-            # First time setup: prompt user directly
             prompted = simpledialog.askstring(
                 title="Enter Target URL",
                 prompt="Enter the target URL to scrape (e.g. https://www.zillow.com/austin-tx/):",
                 initialvalue="https://www.zillow.com/austin-tx/",
             )
             chosen_url = (prompted or "https://www.zillow.com/austin-tx/").strip()
-            update_env_target_url(chosen_url, env_path)
+            update_env_variable("TARGET_URL", chosen_url, env_path)
+
+        # --- 2. Extraction Count Prompt (Unlimited or Specific Number) ---
+        count_prompt = simpledialog.askstring(
+            title="Extraction Volume",
+            prompt=(
+                "How many listings do you want to extract?\n\n"
+                "• Enter a number (e.g. 50, 100, 250)\n"
+                "• Enter 0 for UNLIMITED (scrapes until end of feed)"
+            ),
+            initialvalue=saved_items_str or "50",
+        )
+
+        try:
+            max_items = int(count_prompt.strip()) if count_prompt else 50
+        except ValueError:
+            max_items = 0 if count_prompt and "all" in count_prompt.lower() else 50
+
+        update_env_variable("MAX_ITEMS", str(max_items), env_path)
 
         root.destroy()
-        return chosen_url or "https://www.zillow.com/austin-tx/"
+        return chosen_url, max_items
 
     except Exception as e:
-        # Fallback for headless environments (Docker, SSH, Linux servers without desktop)
-        print(f"[*] GUI prompt unavailable ({e}). Using CLI fallback.")
-        if current_url:
-            return current_url
-        return "https://www.zillow.com/austin-tx/"
+        print(f"[*] GUI prompt unavailable ({e}). Using CLI/environment defaults.")
+        default_url = current_url or "https://www.zillow.com/austin-tx/"
+        default_items = int(saved_items_str) if saved_items_str.isdigit() else 50
+        return default_url, default_items
+
+
+# Backwards compatibility alias
+get_or_prompt_target_url = lambda: get_or_prompt_config()[0]
