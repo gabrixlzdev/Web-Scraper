@@ -1,29 +1,25 @@
-"""Module containing the core DynamicWebScraper class skeleton.
-
-EDUCATIONAL NOTE:
-In professional data engineering and commercial freelancing (e.g. Fiverr),
-scrapers are designed to be general-purpose and configurable rather than
-hardcoded to a single trademarked brand. This allows you to reuse the same
-engine across many client projects with minimal changes.
-"""
+"""Module containing the core DynamicWebScraper class with Playwright automation."""
 
 import os
+import time
 from typing import Dict, List, Optional
 from pathlib import Path
 
-# python-dotenv:
-# Reads key-value pairs from a `.env` file and adds them to environment variables (os.environ).
+# python-dotenv: Loads key-value pairs from .env into os.environ
 from dotenv import load_dotenv
 
-# Initialize environment variables from .env
+# Playwright Sync API: Provides synchronous methods to control browser instances
+from playwright.sync_api import sync_playwright, Playwright, Browser, BrowserContext, Page
+
+# Initialize environment variables
 load_dotenv()
 
 
 class DynamicWebScraper:
     """Production-grade scraper for extracting data from dynamic websites.
 
-    This class encapsulates browser automation settings, anti-detection
-    configurations, and extracted data management.
+    Encapsulates Playwright lifecycle management, anti-detection configs,
+    and data storage.
     """
 
     def __init__(
@@ -34,38 +30,24 @@ class DynamicWebScraper:
         user_agent: Optional[str] = None,
         output_dir: str = "data",
     ) -> None:
-        """Initializes the DynamicWebScraper instance.
-
-        Settings fallback hierarchy:
-        1. Explicit argument passed into DynamicWebScraper(...)
-        2. Environment variable from .env (e.g. os.getenv("HEADLESS"))
-        3. Hardcoded safe default fallback value
-
-        Args:
-            target_url: The target website entry point.
-            headless:
-                - `True`: Browser runs silently in background (fast, server/Docker friendly).
-                - `False`: Visual browser window pops up (client demo & debugging).
-            timeout: Maximum wait time in milliseconds before timing out.
-            user_agent: Browser header string mimicking human navigation.
-            output_dir: Local directory where extracted CSV/JSON files will be stored.
-        """
-        # Resolve configurations: argument -> env var -> hardcoded default
+        """Initializes scraper settings and establishes instance variables."""
+        # Target URL fallback
         self.target_url = target_url or os.getenv("TARGET_URL", "https://www.zillow.com")
 
+        # Headless mode: True = hidden background execution; False = visual window
         if headless is not None:
             self.headless = headless
         else:
-            # os.getenv returns a string, so we check if it equals "true" (case-insensitive)
             env_headless = os.getenv("HEADLESS", "False").strip().lower()
             self.headless = env_headless in ("true", "1", "yes")
 
+        # Timeout in milliseconds (default 30 seconds)
         if timeout is not None:
             self.timeout = timeout
         else:
             self.timeout = int(os.getenv("SCRAPER_TIMEOUT", "30000"))
 
-        # Modern Chrome User-Agent on Windows 10/11 to avoid immediate bot detection
+        # User-Agent header string mimicking a standard modern desktop browser
         self.user_agent = (
             user_agent
             or os.getenv("USER_AGENT")
@@ -73,14 +55,90 @@ class DynamicWebScraper:
             "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         )
 
-        # Pathlib automatically handles path slashes regardless of OS (Windows '\' vs Linux '/')
+        # Output folder for data artifacts
         self.output_dir = Path(output_dir)
-        # Create output directory if it doesn't already exist (mkdir -p equivalent)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        # In-memory storage list where raw scraped records will accumulate
+        # In-memory storage for extracted records
         self.raw_listings: List[Dict[str, Optional[str]]] = []
 
+        # Playwright lifecycle handles (initialized as None until browser starts)
+        self._playwright: Optional[Playwright] = None
+        self.browser: Optional[Browser] = None
+        self.context: Optional[BrowserContext] = None
+        self.page: Optional[Page] = None
 
-# Alias for backwards compatibility if referenced under a real estate alias
+    def start_browser(self) -> None:
+        """Launches the Chromium engine and creates an anti-detection browser context."""
+        # Start the underlying Playwright driver process
+        self._playwright = sync_playwright().start()
+
+        # Launch Chromium (headless=False will physically open the browser window)
+        self.browser = self._playwright.chromium.launch(
+            headless=self.headless,
+            args=[
+                "--disable-blink-features=AutomationControlled",  # Disables navigator.webdriver flag
+                "--start-maximized",                             # Starts window maximized
+            ],
+        )
+
+        # Create an isolated browser context with custom viewport, locale, and user agent
+        self.context = self.browser.new_context(
+            user_agent=self.user_agent,
+            viewport={"width": 1920, "height": 1080},
+            locale="en-US",
+            timezone_id="America/New_York",
+        )
+
+        # Create a new tab (Page) inside our configured context
+        self.page = self.context.new_page()
+        # Set default timeout for all page operations (clicks, waits, navigation)
+        self.page.set_default_timeout(self.timeout)
+
+    def navigate(self, url: Optional[str] = None) -> bool:
+        """Navigates the browser page to the specified URL or target_url.
+
+        Returns:
+            True if navigation succeeded, False otherwise.
+        """
+        dest_url = url or self.target_url
+        if not self.page:
+            raise RuntimeError("Browser not started. Call start_browser() first or use 'with' block.")
+
+        try:
+            print(f"[*] Navigating to: {dest_url}")
+            # wait_until='domcontentloaded': Waits for the basic HTML/DOM structure to load
+            self.page.goto(dest_url, wait_until="domcontentloaded", timeout=self.timeout)
+            return True
+        except Exception as e:
+            print(f"[!] Navigation error to {dest_url}: {e}")
+            return False
+
+    def close_browser(self) -> None:
+        """Safely shuts down Page, Context, Browser, and Playwright driver."""
+        # Close in reverse order of creation to prevent hanging processes
+        if self.page:
+            self.page.close()
+            self.page = None
+        if self.context:
+            self.context.close()
+            self.context = None
+        if self.browser:
+            self.browser.close()
+            self.browser = None
+        if self._playwright:
+            self._playwright.stop()
+            self._playwright = None
+
+    def __enter__(self) -> "DynamicWebScraper":
+        """Allows using the scraper with Python's 'with' statement."""
+        self.start_browser()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Ensures browser resources are cleanly closed on exit or exception."""
+        self.close_browser()
+
+
+# Backwards compatibility alias
 RealEstateScraper = DynamicWebScraper
