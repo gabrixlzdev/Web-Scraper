@@ -1,13 +1,4 @@
-"""Module containing the core DynamicWebScraper orchestrator class.
-
-EDUCATIONAL NOTE:
-In modern software architecture, the main class acts as an Orchestrator.
-Instead of doing everything itself, it delegates tasks to specialized modules:
-- BrowserManager: starts and stops Chromium
-- BotChallengeHandler: handles CAPTCHAs
-- ListingExtractor: parses card details
-- InfiniteScroller: handles continuous pagination scrolling
-"""
+"""High-level scraper orchestrator module."""
 
 import os
 from typing import Dict, List, Optional
@@ -19,11 +10,12 @@ from src.bot_handler import BotChallengeHandler
 from src.extractor import ListingExtractor
 from src.scroller import InfiniteScroller
 
+# Load variables from local .env into os.environ
 load_dotenv()
 
 
 class DynamicWebScraper:
-    """Orchestrator for automated dynamic web scraping and extraction."""
+    """Orchestrator coordinating browser, bot defense, extractor, and scroller."""
 
     def __init__(
         self,
@@ -34,17 +26,22 @@ class DynamicWebScraper:
         output_dir: str = "data",
         user_data_dir: Optional[str] = None,
     ) -> None:
+        # Resolve target URL from argument or .env
         self.target_url = target_url or os.getenv("TARGET_URL", "https://www.zillow.com/austin-tx/")
 
+        # Headless mode: True = hidden in background, False = visual window
         if headless is not None:
             self.headless = headless
         else:
             env_headless = os.getenv("HEADLESS", "False").strip().lower()
             self.headless = env_headless in ("true", "1", "yes")
 
+        # Milliseconds timeout for operations (clicks, navigation)
         self.timeout = timeout or int(os.getenv("SCRAPER_TIMEOUT", "30000"))
+        # Output directory where CSV/JSON files are saved
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        # Persistent profile directory storing cookies across runs
         profile_path = user_data_dir or os.getenv("USER_DATA_DIR", "browser_profile")
 
         # Initialize sub-components
@@ -63,13 +60,13 @@ class DynamicWebScraper:
         self.raw_listings: List[Dict[str, Optional[str]]] = []
 
     def start_browser(self) -> None:
-        """Starts browser through BrowserManager and initializes page-dependent components."""
+        """Launches Chromium and initializes bot handler and scroller components."""
         self.context, self.page = self.browser_manager.launch()
         self.bot_handler = BotChallengeHandler(page=self.page)
         self.scroller = InfiniteScroller(page=self.page, extractor=self.extractor)
 
     def navigate(self, url: Optional[str] = None) -> bool:
-        """Navigates to URL and clears any bot challenge screen."""
+        """Navigates to URL and clears any bot verification challenges."""
         dest_url = url or self.target_url
         if not self.page:
             raise RuntimeError("Browser not started. Call start_browser() first or use 'with' block.")
@@ -90,7 +87,7 @@ class DynamicWebScraper:
         max_scroll_attempts: int = 15,
         max_pages: int = 25,
     ) -> List[Dict[str, Optional[str]]]:
-        """Extracts listings across multiple pages until target_count is reached or pages end."""
+        """Extracts listings across multiple pages until target_count is reached."""
         if not self.scroller:
             raise RuntimeError("Scraper not initialized. Call start_browser() first.")
 
@@ -107,11 +104,14 @@ class DynamicWebScraper:
         self.browser_manager.close()
 
     def __enter__(self) -> "DynamicWebScraper":
+        """Starts browser automatically upon entering a 'with' block."""
         self.start_browser()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Guarantees browser is closed upon exiting a 'with' block."""
         self.close_browser()
 
 
+# Backwards compatibility alias
 RealEstateScraper = DynamicWebScraper

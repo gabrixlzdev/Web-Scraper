@@ -70,9 +70,9 @@ python main.py
 ```
 
 > **Interactive User Experience**:
-> 1. **URL Selection Modal**: Native GUI dialog prompts you to confirm or enter the target URL to scrape (e.g. `https://www.zillow.com/austin-tx/`). New URLs are automatically persisted to `.env`.
+> 1. **URL & Volume Selection Modal**: Native GUI dialog prompts you to confirm/enter the target URL and desired item count (or `0` for Unlimited Mode). Settings are automatically persisted to `.env`.
 > 2. **Persistent Browser Session**: Chromium launches with session profile persistence (`browser_profile/`), saving cookies to bypass repetitive bot checks.
-> 3. **Infinite Scroll Extraction**: The engine scrolls the listing container continuously, hydrating lazy-loaded items and collecting unique records until your target count is met.
+> 3. **Infinite Scroll & Multi-Page Traversal**: The engine scrolls each page container to hydrate lazy cards and automatically advances through the pagination bar (`[Next >]`) until your requested target count is fulfilled.
 > 4. **Inspection Hold**: The browser window remains open until you press **Enter** in your terminal.
 
 ---
@@ -97,6 +97,7 @@ Configure these settings inside your local `.env` file (or automatically via the
 * **Automation Flag Masking**: Automatically strips `navigator.webdriver` via `--disable-blink-features=AutomationControlled`.
 * **Automated Press-and-Hold Solver**: Detects PerimeterX/DataDome verification overlays and simulates realistic human mouse down/hold/up interactions.
 * **Targeted Container Scrolling**: Uses JavaScript execution to scroll `#search-page-list-container` directly, preventing map zooming.
+* **Multi-Page Auto-Progression**: Automatically detects the end of the current page feed and advances through pagination buttons (`[Next >]`) or URL parameters.
 * **Real-Time Deduplication**: Uses set-based memory hashing to prevent duplicate listings during infinite scrolling.
 
 ---
@@ -111,7 +112,7 @@ Configure these settings inside your local `.env` file (or automatically via the
 
 ---
 
-## 💼 Custom Data Extraction Services (Fiverr Portfolio)
+## 💼 Custom Data Extraction & Engineering Services
 
 Need reliable, high-volume data extraction or custom scrapers built for your business?
 

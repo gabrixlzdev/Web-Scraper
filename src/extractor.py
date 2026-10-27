@@ -1,10 +1,4 @@
-"""Module responsible for extracting property details using hybrid DOM + Regex strategy.
-
-EDUCATIONAL NOTE:
-Extractors convert raw, noisy HTML into clean, structured dictionaries.
-By decoupling extraction from navigation, this module can be tested in isolation
-or adapted for completely different target websites with minimal effort.
-"""
+"""Data extraction module for listing cards using hybrid DOM + Regex strategy."""
 
 import re
 from typing import Dict, List, Optional
@@ -13,13 +7,14 @@ from playwright.sync_api import Locator, Page
 
 
 class ListingExtractor:
-    """Extracts price, address, beds, baths, and direct URLs from listing cards."""
+    """Parses prices, addresses, beds, baths, and listing URLs from cards."""
 
     def __init__(self, base_url: str) -> None:
+        # Base URL used to convert relative paths (/homedetails/...) into full URLs
         self.base_url = base_url
 
     def find_cards(self, page: Page) -> Optional[Locator]:
-        """Locates property card containers on the active page."""
+        """Locates property card containers on the active page using fallback selectors."""
         card_selectors = [
             'article[data-test="property-card"]',
             'div[data-test="property-card"]',
@@ -34,7 +29,7 @@ class ListingExtractor:
         return None
 
     def _safe_get_text(self, parent: Locator, selectors: List[str]) -> Optional[str]:
-        """Tries candidate selectors and returns first non-empty text."""
+        """Tries candidate selectors and returns first non-empty text found."""
         for selector in selectors:
             try:
                 elem = parent.locator(selector).first
@@ -48,7 +43,7 @@ class ListingExtractor:
 
     def extract_single_card(self, card: Locator) -> Dict[str, Optional[str]]:
         """Parses an individual property card using hybrid DOM + Regex parsing."""
-        # 1. Address
+        # --- 1. Address via DOM selectors ---
         address = self._safe_get_text(card, [
             '[data-test="property-card-addr"]',
             'address[data-test="property-card-addr"]',
@@ -57,7 +52,7 @@ class ListingExtractor:
             'a[class*="StyledPropertyCardDataArea-anchor"]',
         ])
 
-        # 2. Direct Listing URL
+        # --- 2. Direct Listing URL via <a> tags ---
         item_url = None
         link_selectors = [
             'a[data-test="property-card-link"]',
@@ -73,12 +68,13 @@ class ListingExtractor:
                 if link_elem.count() > 0:
                     raw_href = link_elem.get_attribute("href")
                     if raw_href and raw_href.strip():
+                        # urljoin automatically converts '/homedetails/...' to 'https://...'
                         item_url = urljoin(self.base_url, raw_href.strip())
                         break
             except Exception:
                 continue
 
-        # 3. Price via DOM
+        # --- 3. Price via DOM selectors ---
         price = self._safe_get_text(card, [
             '[data-test="property-card-price"]',
             'span[data-test="property-card-price"]',
@@ -87,7 +83,7 @@ class ListingExtractor:
             'span:has-text("$")',
         ])
 
-        # 4. Beds & Baths via DOM
+        # --- 4. Beds & Baths via DOM selectors ---
         beds = self._safe_get_text(card, [
             'ul[class*="StyledPropertyCardHomeDetailsList"] li:has-text("bd")',
             'ul[class*="StyledPropertyCardHomeDetailsList"] li:has-text("bed")',
@@ -102,13 +98,14 @@ class ListingExtractor:
             'span:has-text("bath")',
         ])
 
-        # 5. Regex Fallback: Inspect Card Inner Text
+        # --- 5. Fallback: Parse visible card text using Regex ---
         try:
             raw_text = card.inner_text()
         except Exception:
             raw_text = ""
 
         if raw_text:
+            # Matches currency symbols ($ € £ R$ C$ A$) and comma-separated digits
             if not price:
                 price_match = re.search(
                     r"(?:\$|€|£|R\$|C\$|A\$)\s*\d{1,3}(?:[,\.]\d{3})*(?:\s*\/\s*(?:mo|month))?",
@@ -117,6 +114,7 @@ class ListingExtractor:
                 if price_match:
                     price = price_match.group(0).strip()
 
+            # Matches bedroom counts like '3 bds', '2 beds', 'Studio', etc.
             if not beds:
                 beds_match = re.search(
                     r"(\d+(?:\.\d+)?|\bStudio\b)\s*(?:bds?|beds?|bedrooms?|dormitorio[s]?|quarto[s]?)",
@@ -126,6 +124,7 @@ class ListingExtractor:
                 if beds_match:
                     beds = beds_match.group(0).strip()
 
+            # Matches bathroom counts like '2 ba', '1.5 baths', etc.
             if not baths:
                 baths_match = re.search(
                     r"(\d+(?:\.\d+)?)\s*(?:ba|baths?|bathrooms?|baño[s]?|banheiro[s]?)",
@@ -135,6 +134,7 @@ class ListingExtractor:
                 if baths_match:
                     baths = baths_match.group(0).strip()
 
+            # Matches address format like 'Street, City, ST ZIP'
             if not address:
                 addr_match = re.search(
                     r"\d+[^,\n]+,\s*[^,\n]+,\s*[A-Z]{2}\s*\d{5}", raw_text

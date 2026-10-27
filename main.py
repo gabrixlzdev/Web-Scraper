@@ -1,14 +1,4 @@
-"""Main execution entry point for the Dynamic Web Scraper.
-
-Features:
-- Native GUI dialog to confirm/enter target URL and desired item count (with .env persistence)
-- Supports Unlimited Mode (0 = ALL available listings)
-- Persistent anti-detection Chromium session (retaining cookies across runs)
-- Automated handling of bot challenge overlays
-- Infinite scroll pagination engine with real-time deduplication
-- Resilient property data extraction (Price, Address, Beds, Baths, and Link URL)
-- Interactive keep-alive until user chooses to close
-"""
+"""Main execution entry point for the Dynamic Web Scraper."""
 
 from src.scraper import DynamicWebScraper
 from src.config_gui import get_or_prompt_config
@@ -26,19 +16,20 @@ def run_demo():
     print(f"[*] Target URL: {selected_url}")
     print(f"[*] Target Volume: {limit_label} listings")
 
-    # 2. Use the context manager ('with' block):
+    # 2. Use context manager ('with' block): launches browser and ensures clean exit
     with DynamicWebScraper(target_url=selected_url) as scraper:
         print("[+] Browser launched successfully.")
 
-        # Navigate to target page and handle any bot challenge
+        # Navigate to target search page and handle any bot challenge
         success = scraper.navigate()
 
         if success:
             print("[+] Page loaded successfully!")
 
-            # Run infinite scroll extraction for the requested count (dynamically scales scroll steps)
+            # Extract listings using infinite scroll and multi-page pagination
             listings = scraper.extract_listings(target_count=max_items)
 
+            # Display extracted results in formatted console table
             print(f"\n================ Extracted Listings ({len(listings)} Total) ================")
             if listings:
                 for idx, item in enumerate(listings, start=1):
@@ -57,7 +48,7 @@ def run_demo():
         else:
             print("[!] Failed to load target URL.")
 
-        # Keep browser open indefinitely until user presses Enter in terminal
+        # Keep browser open until user presses Enter in terminal for inspection
         input("\n[?] Browser is active and open. Press Enter in this terminal to close it...")
 
     print("[+] Scraper finished and browser closed cleanly.")
