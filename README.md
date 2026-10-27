@@ -23,12 +23,14 @@ Scalable-web-scraper/
 │   ├── config_gui.py        # Native GUI modal for URL selection & .env persistence
 │   └── pipeline.py          # Data cleaning, normalization, and CSV export
 ├── data/                    # Output directory (CSV/JSON artifacts)
-├── .env.example             # Environment configuration template
-├── .gitignore               # Production-grade gitignore rules
-├── Dockerfile               # Containerized headless environment
-├── main.py                  # Live demonstration runner
-├── requirements.txt         # Pinned dependencies
-└── README.md                # Project documentation
+├── .dockerignore           # Docker build exclusion rules
+├── .env.example            # Environment configuration template
+├── .gitignore              # Production-grade gitignore rules
+├── docker-compose.yml      # 1-click containerized execution & volume mounts
+├── Dockerfile              # Containerized headless environment
+├── main.py                 # Live demonstration runner
+├── requirements.txt        # Pinned dependencies
+└── README.md               # Project documentation
 ```
 
 ---
@@ -75,6 +77,33 @@ python main.py
 > 3. **Infinite Scroll & Multi-Page Traversal**: The engine scrolls each page container to hydrate lazy cards and automatically advances through the pagination bar (`[Next >]`) until your requested target count is fulfilled.
 > 4. **Automated CSV Export**: Extracted listings are automatically cleaned with Pandas (prices converted to numeric integers, addresses split into city/state/zip) and saved to `data/listings_<timestamp>.csv`.
 > 5. **Inspection Hold**: The browser window remains open until you press **Enter** in your terminal.
+
+---
+
+## 🐳 Docker Deployment Guide (Cloud & Server Ready)
+
+Run the scraper inside an isolated container with zero local Python or browser dependencies:
+
+### 1-Click Execution via Docker Compose (Recommended)
+```bash
+# Build image and run the scraper in headless mode
+docker compose up --build
+```
+* **Host Volume Mount**: Exported CSV files automatically appear in your local `data/` folder on your computer.
+* **Cookie Persistence**: Session state is persisted to your local `browser_profile/` across container restarts.
+
+### Running with Vanilla Docker
+```bash
+# Build the Docker image
+docker build -t scalable-scraper .
+
+# Run container and mount data folder to host
+# On Windows (PowerShell):
+docker run --rm -v ${PWD}/data:/app/data scalable-scraper
+
+# On Linux / macOS:
+docker run --rm -v $(pwd)/data:/app/data scalable-scraper
+```
 
 ---
 

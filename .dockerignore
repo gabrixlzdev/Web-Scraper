@@ -1,0 +1,36 @@
+# ==============================================================================
+# Docker Ignore File (.dockerignore)
+# ==============================================================================
+# Prevents unnecessary local files from being copied into the Docker image,
+# reducing build time and keeping container images lightweight.
+
+# Python compiled bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local virtual environments
+venv/
+.venv/
+env/
+
+# Git history and config
+.git/
+.gitignore
+
+# Local secrets (never bake secrets into Docker images)
+.env
+
+# Local data artifacts (mounted via volumes at runtime instead)
+data/*.csv
+data/*.json
+
+# Local persistent browser state (mounted via volumes at runtime)
+browser_profile/
+user_data/
+
+# IDE and OS metadata
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

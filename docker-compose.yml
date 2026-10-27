@@ -1,0 +1,33 @@
+# ==============================================================================
+# Docker Compose Configuration (docker-compose.yml)
+# ==============================================================================
+# Enables 1-click execution: mounts local output folders and sets environment variables.
+
+version: '3.8'
+
+services:
+  scraper:
+    # Build container using local Dockerfile
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # Human-readable container name in Docker Desktop / CLI
+    container_name: scalable-web-scraper
+
+    # Environment variables passed into container (overrides .env for headless cloud execution)
+    environment:
+      - HEADLESS=True
+      - TARGET_URL=${TARGET_URL:-https://www.zillow.com/austin-tx/}
+      - MAX_ITEMS=${MAX_ITEMS:-50}
+      - SCRAPER_TIMEOUT=${SCRAPER_TIMEOUT:-30000}
+
+    # Volume mounts: bind-mount local directories to container directories
+    volumes:
+      # Maps local ./data folder to /app/data so exported CSVs appear on your computer
+      - ./data:/app/data
+      # Maps local ./browser_profile to /app/browser_profile to retain cookies across runs
+      - ./browser_profile:/app/browser_profile
+
+    # Do not automatically restart after scraping batch is complete
+    restart: "no"
