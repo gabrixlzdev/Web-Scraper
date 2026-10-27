@@ -21,13 +21,62 @@ Scalable-web-scraper/
 ├── .env.example            # Environment configuration template
 ├── .gitignore              # Production-grade gitignore rules
 ├── Dockerfile              # Containerized headless environment
+├── main.py                 # Live demonstration runner
 ├── requirements.txt        # Pinned dependencies
 └── README.md               # Project documentation
 ```
 
 ---
 
-## 🚀 Key Features
+## 🚀 Quick Start Guide
+
+Follow these steps to run the scraper locally on your machine:
+
+### 1. Clone the repository & create a virtual environment
+```bash
+# Clone the repository
+git clone https://github.com/<your-username>/Scalable-web-scraper.git
+cd Scalable-web-scraper
+
+# Create a virtual environment (isolates dependencies)
+python -m venv venv
+
+# Activate the virtual environment
+# On Windows (PowerShell):
+.\venv\Scripts\Activate.ps1
+# On Windows (CMD):
+.\venv\Scripts\activate.bat
+# On Linux / macOS:
+source venv/bin/activate
+```
+
+### 2. Install dependencies & Playwright browser binaries
+```bash
+# Install Python packages
+python -m pip install -r requirements.txt
+
+# Download the Chromium browser engine used by Playwright
+python -m playwright install chromium
+```
+
+### 3. Configure environment settings
+```bash
+# Copy example configuration template to create your .env
+# On Windows:
+copy .env.example .env
+# On Linux / macOS:
+cp .env.example .env
+```
+*(By default, `HEADLESS=False` in `.env` so you can visually watch the browser window pop up and run).*
+
+### 4. Run the scraper demonstration
+```bash
+python main.py
+```
+
+---
+
+## ⚙️ Key Features
 
 * **Dynamic JavaScript Rendering**: Handles single-page applications (SPAs), infinite scroll, and delayed DOM hydration via Playwright's browser engine.
 * **Anti-Bot & Stealth Browsing**: Employs humanized User-Agents, configurable viewport dimensions, and automated navigation delays to bypass basic automated bot detection.
